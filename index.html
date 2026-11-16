@@ -108,7 +108,7 @@ h4.sh{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mu
 <label>มุม ° จาก<input type="number" data-r="g1" min="0" step="0.1"></label><label>ถึง<input type="number" data-r="g2" min="0" step="0.1"></label>
 <button type="button" class="exp" id="drv" title="อ่านไฟล์ .geojson ทั้งหมดจากโฟลเดอร์ Google Drive">☁ โหลดจาก Drive</button>
 <button type="button" class="exp" id="exp" title="ส่งออกรายการ Scene ที่ทับประเทศไทย (ตามตัวกรอง) เป็น CSV">⬇ CSV Scene ไทย</button>
-<label>เปลี่ยน GeoJSON<input type="file" id="file" accept=".geojson,.json"></label><label>ขอบเขตไทย (ไม่บังคับ)<input type="file" id="thf" accept=".geojson,.json"></label></div></header>
+<label>เปลี่ยน GeoJSON<input type="file" id="file" accept=".geojson,.json" multiple></label><label>ขอบเขตไทย (ไม่บังคับ)<input type="file" id="thf" accept=".geojson,.json"></label></div></header>
 <main>
 <section class="page on" id="pDash">
 <div class="card"><h2>ไฟล์ข้อมูล</h2><div id="srcD"></div></div>
@@ -204,7 +204,9 @@ function drawMap(){lg.clearLayers();const to=$("tho").checked,op=+$("fo").value,
 function tab(n){$("pDash").classList.toggle("on",n==1);$("pMap").classList.toggle("on",n==2);$("b1").classList.toggle("on",n==1);$("b2").classList.toggle("on",n==2);if(n==2){map.invalidateSize();drawMap()}else update()}
 $("b1").onclick=()=>tab(1);$("b2").onclick=()=>tab(2);addEventListener("resize",()=>{if($("pDash").classList.contains("on"))update()});
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.r;if(!k)return;const v=e.target.value;R[k]=/^(d1|d2|m)$/.test(k)?v:(v===""?"":+v);update()});
-$("file").onchange=async e=>{const fl=e.target.files[0];if(!fl)return;try{load(parseGJ(JSON.parse(await fl.text())),fl.name)}catch(err){alert("อ่านไฟล์ "+fl.name+" ไม่ได้: "+err.message)}e.target.value=""};
+$("file").onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;
+ try{const rows=[];for(const fl of fs)parseGJ(JSON.parse(await fl.text())).forEach(x=>rows.push(x));
+  load(rows,fs.length==1?fs[0].name:fs.length+" ไฟล์")}catch(err){alert("อ่านไฟล์ไม่ได้: "+err.message)}e.target.value=""};
 $("thf").onchange=async e=>{const fl=e.target.files[0];if(!fl)return;try{const j=JSON.parse(await fl.text()),rs=[],fs=j.features||(j.type=="Feature"?[j]:[{geometry:j}]);
  fs.forEach(f=>{const g=f.geometry;if(!g)return;(g.type=="Polygon"?[g.coordinates]:g.type=="MultiPolygon"?g.coordinates:[]).forEach(p=>p.forEach(r=>rs.push(r.flatMap(c=>[c[0],c[1]]))))});
  if(!rs.length)throw new Error("ไม่พบ Polygon ในไฟล์");THR=rs;buildTH();drawTH();D.forEach(thai);update()}catch(err){alert("อ่านไฟล์ขอบเขต "+fl.name+" ไม่ได้: "+err.message)}e.target.value=""};
@@ -254,6 +256,19 @@ async function gdLoad(){
 }
 $("drv").onclick=gdLoad;
 buildMap();load(DATA,"THEOS_Scenes_2008.geojson");
+/* ---- โหลดจากโฟลเดอร์ geojson/ ข้างไฟล์ index.html (ไม่ต้องใช้ API Key) ---- */
+async function loadManifest(silent){
+ try{
+  const r=await fetch("geojson/manifest.json",{cache:"no-store"});if(!r.ok)throw new Error("ไม่พบ geojson/manifest.json ("+r.status+")");
+  const m=await r.json(),all=Array.isArray(m)?m:(m.files||[]);
+  const fs=all.filter(n=>/\.(geo)?json$/i.test(n)&&n.toUpperCase().startsWith(GD.prefix.toUpperCase()));
+  if(!fs.length)throw new Error("ใน manifest ไม่มีไฟล์ที่ขึ้นต้นด้วย "+GD.prefix);
+  const rows=[];let n=0;const st=$("srcD");
+  for(const f of fs){const rr=await fetch("geojson/"+encodeURIComponent(f));if(!rr.ok)throw new Error(f+" โหลดไม่ได้ ("+rr.status+")");
+   parseGJ(await rr.json()).forEach(x=>rows.push(x));st.textContent="โหลดแล้ว "+(++n)+"/"+fs.length+" ไฟล์ …"}
+  load(rows,"geojson/ · "+fs.length+" ไฟล์");
+ }catch(err){if(!silent)alert("โหลดจากโฟลเดอร์ geojson ไม่ได้: "+err.message)}
+}
 try{const k=localStorage.getItem("gdkey");if(k&&GD.key==="YOUR_API_KEY")GD.key=k}catch(e){}
-if(GD.auto&&GD.key!=="YOUR_API_KEY")gdLoad();
+if(GD.auto&&GD.key!=="YOUR_API_KEY")gdLoad();else loadManifest(true);
 </script></body></html>
