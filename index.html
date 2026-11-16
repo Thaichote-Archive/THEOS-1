@@ -232,7 +232,10 @@ async function gdList(){
  return out.filter(f=>/\.(geo)?json$/i.test(f.name)&&f.name.toUpperCase().startsWith(GD.prefix.toUpperCase()));
 }
 async function gdLoad(){
- if(!GD.key||GD.key==="YOUR_API_KEY"){alert("ยังไม่ได้ใส่ API Key — แก้ค่า GD.key ในโค้ดก่อน");return}
+ if(!GD.key||GD.key==="YOUR_API_KEY"){
+  let k="";try{k=localStorage.getItem("gdkey")||""}catch(e){}
+  if(!k){k=(prompt("วาง Google API Key (ขึ้นต้นด้วย AIza...) ที่นี่")||"").trim();if(!k)return;try{localStorage.setItem("gdkey",k)}catch(e){}}
+  GD.key=k}
  const st=$("srcD");
  try{
   st.textContent="กำลังอ่านรายชื่อไฟล์จาก Google Drive …";
@@ -251,5 +254,6 @@ async function gdLoad(){
 }
 $("drv").onclick=gdLoad;
 buildMap();load(DATA,"THEOS_Scenes_2008.geojson");
+try{const k=localStorage.getItem("gdkey");if(k&&GD.key==="YOUR_API_KEY")GD.key=k}catch(e){}
 if(GD.auto&&GD.key!=="YOUR_API_KEY")gdLoad();
 </script></body></html>
